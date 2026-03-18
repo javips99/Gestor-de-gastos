@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestor de Gastos</title>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/charts.css" />
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__brand">
+      <span class="sidebar__logo">💰</span>
+      <span class="sidebar__title">GestorGastos</span>
+    </div>
+
+    <nav class="sidebar__nav">
+      <button class="nav-item nav-item--active" data-view="dashboard">
+        <span class="nav-item__icon">📊</span>
+        <span class="nav-item__label">Dashboard</span>
+      </button>
+      <button class="nav-item" data-view="transacciones">
+        <span class="nav-item__icon">💳</span>
+        <span class="nav-item__label">Transacciones</span>
+      </button>
+      <button class="nav-item" data-view="categorias">
+        <span class="nav-item__icon">🏷️</span>
+        <span class="nav-item__label">Categorías</span>
+      </button>
+    </nav>
+
+    <div class="sidebar__footer">
+      <span class="sidebar__version">v1.0.0</span>
+    </div>
+  </aside>
+
+  <!-- ===== OVERLAY SIDEBAR MÓVIL ===== -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ===== CONTENIDO PRINCIPAL ===== -->
+  <main class="main" id="main">
+
+    <!-- Header -->
+    <header class="topbar">
+      <button class="topbar__menu-btn" id="menuToggle" aria-label="Menú">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="topbar__content">
+        <h1 class="topbar__title" id="pageTitle">Dashboard</h1>
+        <div class="topbar__date" id="topbarDate"></div>
+      </div>
+      <div class="topbar__actions" id="topbarActions"></div>
+    </header>
+
+    <!-- Contenedor de vistas -->
+    <div class="view-container">
+
+      <!-- ========== VISTA: DASHBOARD ========== -->
+      <section class="view" id="view-dashboard">
+
+        <!-- Filtro de período -->
+        <div class="period-filter card">
+          <label class="period-filter__label">Período:</label>
+          <div class="period-filter__inputs">
+            <input type="date" id="dashDesde" class="input input--sm" />
+            <span class="period-filter__sep">→</span>
+            <input type="date" id="dashHasta" class="input input--sm" />
+            <button class="btn btn--primary btn--sm" id="dashApplyBtn">Aplicar</button>
+            <button class="btn btn--ghost btn--sm" id="dashResetBtn">Este año</button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-card--income">
+            <div class="kpi-card__icon">📈</div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">Total Ingresos</span>
+              <span class="kpi-card__value" id="kpiIngresos">—</span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-card--expense">
+            <div class="kpi-card__icon">📉</div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">Total Gastos</span>
+              <span class="kpi-card__value" id="kpiGastos">—</span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-card--balance" id="kpiBalanceCard">
+            <div class="kpi-card__icon">⚖️</div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">Balance</span>
+              <span class="kpi-card__value" id="kpiBalance">—</span>
+            </div>
+          </div>
+          <div class="kpi-card kpi-card--neutral">
+            <div class="kpi-card__icon">🔢</div>
+            <div class="kpi-card__body">
+              <span class="kpi-card__label">Transacciones</span>
+              <span class="kpi-card__value" id="kpiTotal">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-grid">
+          <div class="card chart-card chart-card--lg">
+            <div class="card__header">
+              <h2 class="card__title">Evolución Mensual</h2>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chartEvolucion"></canvas>
+            </div>
+          </div>
+
+          <div class="card chart-card">
+            <div class="card__header">
+              <h2 class="card__title">Gastos por Categoría</h2>
+            </div>
+            <div class="chart-wrapper chart-wrapper--donut">
+              <canvas id="chartCategoriasGasto"></canvas>
+            </div>
+          </div>
+
+          <div class="card chart-card">
+            <div class="card__header">
+              <h2 class="card__title">Ingresos por Categoría</h2>
+            </div>
+            <div class="chart-wrapper chart-wrapper--donut">
+              <canvas id="chartCategoriasIngreso"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top categorías -->
+        <div class="card">
+          <div class="card__header">
+            <h2 class="card__title">Top Categorías de Gasto</h2>
+          </div>
+          <div id="topCategoriasLista" class="top-categorias"></div>
+        </div>
+
+        <!-- Últimas transacciones -->
+        <div class="card">
+          <div class="card__header">
+            <h2 class="card__title">Últimas Transacciones</h2>
+            <button class="btn btn--ghost btn--sm" data-view="transacciones">Ver todas →</button>
+          </div>
+          <div id="ultimasTransacciones"></div>
+        </div>
+
+      </section>
+
+      <!-- ========== VISTA: TRANSACCIONES ========== -->
+      <section class="view view--hidden" id="view-transacciones">
+
+        <!-- Filtros -->
+        <div class="card filters-bar" id="transFiltersBar">
+          <div class="filters-bar__row">
+            <div class="filter-group">
+              <label class="filter-label">Desde</label>
+              <input type="date" id="transDesde" class="input input--sm" />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Hasta</label>
+              <input type="date" id="transHasta" class="input input--sm" />
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Tipo</label>
+              <select id="transTipo" class="select select--sm">
+                <option value="">Todos</option>
+                <option value="ingreso">Ingresos</option>
+                <option value="gasto">Gastos</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label class="filter-label">Categoría</label>
+              <select id="transCategoria" class="select select--sm">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div class="filters-bar__actions">
+              <button class="btn btn--primary btn--sm" id="transApplyBtn">Filtrar</button>
+              <button class="btn btn--ghost btn--sm" id="transResetBtn">Limpiar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumen rápido -->
+        <div class="quick-summary" id="quickSummary"></div>
+
+        <!-- Tabla de transacciones -->
+        <div class="card">
+          <div class="card__header">
+            <h2 class="card__title">Transacciones</h2>
+            <span class="badge" id="transCount">0</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="table" id="transTable">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th>Tipo</th>
+                  <th class="text-right">Importe</th>
+                  <th class="text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="transTableBody">
+                <tr><td colspan="6" class="table__empty">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- Paginación -->
+          <div class="pagination" id="transPagination"></div>
+        </div>
+
+      </section>
+
+      <!-- ========== VISTA: CATEGORÍAS ========== -->
+      <section class="view view--hidden" id="view-categorias">
+
+        <!-- Filtro tipo -->
+        <div class="tab-filter">
+          <button class="tab-btn tab-btn--active" data-cat-tipo="">Todas</button>
+          <button class="tab-btn" data-cat-tipo="ingreso">Ingresos</button>
+          <button class="tab-btn" data-cat-tipo="gasto">Gastos</button>
+        </div>
+
+        <!-- Grid de categorías -->
+        <div class="categorias-grid" id="categoriasGrid">
+          <div class="loading-spinner">Cargando...</div>
+        </div>
+
+      </section>
+
+    </div><!-- /view-container -->
+  </main>
+
+  <!-- ===== BOTTOM NAV (MÓVIL) ===== -->
+  <nav class="bottom-nav">
+    <button class="bottom-nav__item bottom-nav__item--active" data-view="dashboard">
+      <span>📊</span>
+      <span>Dashboard</span>
+    </button>
+    <button class="bottom-nav__item" data-view="transacciones">
+      <span>💳</span>
+      <span>Gastos</span>
+    </button>
+    <button class="bottom-nav__item" data-view="categorias">
+      <span>🏷️</span>
+      <span>Categorías</span>
+    </button>
+  </nav>
+
+  <!-- ===== FAB BUTTON ===== -->
+  <button class="fab" id="fabBtn" title="Nueva transacción">+</button>
+
+  <!-- ===== MODAL TRANSACCIÓN ===== -->
+  <div class="modal-overlay" id="modalTransaccion" role="dialog" aria-modal="true" aria-labelledby="modalTransTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="modalTransTitle">Nueva Transacción</h2>
+        <button class="modal__close" id="closeModalTrans" aria-label="Cerrar">✕</button>
+      </div>
+      <form class="modal__body" id="formTransaccion" novalidate>
+        <input type="hidden" id="transId" />
+
+        <div class="form-group">
+          <label class="form-label" for="transDescripcion">Descripción *</label>
+          <input type="text" id="transDescripcion" class="input" placeholder="Ej: Compra supermercado" maxlength="150" required />
+          <span class="form-error" id="errDescripcion"></span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="transImporte">Importe (€) *</label>
+            <input type="number" id="transImporte" class="input" placeholder="0.00" min="0.01" max="99999999.99" step="0.01" required />
+            <span class="form-error" id="errImporte"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="transFecha">Fecha *</label>
+            <input type="date" id="transFecha" class="input" required />
+            <span class="form-error" id="errFecha"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tipo *</label>
+          <div class="tipo-selector">
+            <button type="button" class="tipo-btn tipo-btn--gasto tipo-btn--active" data-tipo="gasto">
+              📉 Gasto
+            </button>
+            <button type="button" class="tipo-btn tipo-btn--ingreso" data-tipo="ingreso">
+              📈 Ingreso
+            </button>
+          </div>
+          <input type="hidden" id="transTipoField" value="gasto" />
+          <span class="form-error" id="errTipo"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="transCategoriaField">Categoría *</label>
+          <select id="transCategoriaField" class="select" required>
+            <option value="">Selecciona una categoría</option>
+          </select>
+          <span class="form-error" id="errCategoria"></span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="transNotas">Notas (opcional)</label>
+          <textarea id="transNotas" class="textarea" placeholder="Añade detalles adicionales..." maxlength="500" rows="2"></textarea>
+        </div>
+
+        <div class="form-error form-error--general" id="errGeneral"></div>
+
+        <div class="modal__footer">
+          <button type="button" class="btn btn--ghost" id="cancelModalTrans">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="submitTrans">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== MODAL CATEGORÍA ===== -->
+  <div class="modal-overlay" id="modalCategoria" role="dialog" aria-modal="true" aria-labelledby="modalCatTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <h2 class="modal__title" id="modalCatTitle">Nueva Categoría</h2>
+        <button class="modal__close" id="closeModalCat" aria-label="Cerrar">✕</button>
+      </div>
+      <form class="modal__body" id="formCategoria" novalidate>
+        <input type="hidden" id="catId" />
+
+        <div class="form-row">
+          <div class="form-group form-group--icon">
+            <label class="form-label" for="catIcono">Icono *</label>
+            <input type="text" id="catIcono" class="input input--icon" placeholder="🏷️" maxlength="10" required />
+            <span class="form-error" id="errCatIcono"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="catNombre">Nombre *</label>
+            <input type="text" id="catNombre" class="input" placeholder="Ej: Supermercado" maxlength="50" required />
+            <span class="form-error" id="errCatNombre"></span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="catColor">Color *</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="catColor" class="input input--color" value="#6366F1" required />
+              <span class="color-preview" id="colorPreview">#6366F1</span>
+            </div>
+            <span class="form-error" id="errCatColor"></span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo *</label>
+            <div class="tipo-selector">
+              <button type="button" class="tipo-btn tipo-btn--gasto tipo-btn--active" data-cat-tipo="gasto">
+                📉 Gasto
+              </button>
+              <button type="button" class="tipo-btn tipo-btn--ingreso" data-cat-tipo="ingreso">
+                📈 Ingreso
+              </button>
+            </div>
+            <input type="hidden" id="catTipoField" value="gasto" />
+            <span class="form-error" id="errCatTipo"></span>
+          </div>
+        </div>
+
+        <div class="form-error form-error--general" id="errCatGeneral"></div>
+
+        <div class="modal__footer">
+          <button type="button" class="btn btn--ghost" id="cancelModalCat">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="submitCat">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== MODAL CONFIRM DELETE ===== -->
+  <div class="modal-overlay" id="modalConfirm" role="dialog" aria-modal="true">
+    <div class="modal modal--sm">
+      <div class="modal__header">
+        <h2 class="modal__title">Confirmar eliminación</h2>
+      </div>
+      <div class="modal__body">
+        <p id="confirmMsg">¿Estás seguro de que deseas eliminar este elemento?</p>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--ghost" id="confirmCancel">Cancelar</button>
+        <button class="btn btn--danger" id="confirmOk">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST NOTIFICATIONS ===== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===== LOADING OVERLAY ===== -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner loading-spinner--lg"></div>
+  </div>
+
+  <!-- ===== MÓDULOS JS ===== -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

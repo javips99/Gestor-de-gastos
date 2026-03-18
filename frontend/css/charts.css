@@ -1,0 +1,195 @@
+/* ============================================
+   CHARTS.CSS — Estilos para gráficos Chart.js
+   ============================================ */
+
+/* ===== GRID DE GRÁFICOS ===== */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .charts-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chart-card--lg {
+    grid-column: 1 / -1; /* ocupa las 2 columnas */
+  }
+}
+
+@media (min-width: 1200px) {
+  .charts-grid {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+
+  .chart-card--lg {
+    grid-column: 1 / 2; /* solo la primera columna en pantallas grandes */
+  }
+}
+
+/* ===== CHART CARD ===== */
+.chart-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card .card__header {
+  padding: var(--space-5) var(--space-5) var(--space-3);
+}
+
+/* ===== CHART WRAPPER ===== */
+.chart-wrapper {
+  position: relative;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  flex: 1;
+  min-height: 220px;
+  max-height: 320px;
+}
+
+/* Los gráficos de dona son más pequeños */
+.chart-wrapper--donut {
+  max-height: 260px;
+  min-height: 200px;
+}
+
+/* Canvas de Chart.js — siempre con max-height */
+.chart-wrapper canvas {
+  max-width: 100%;
+}
+
+/* ===== CHART LOADING / EMPTY ===== */
+.chart-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border-radius: inherit;
+}
+
+.chart-placeholder__icon {
+  font-size: 2.5rem;
+  opacity: 0.25;
+}
+
+.chart-placeholder__text {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+/* ===== LEYENDA PERSONALIZADA ===== */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  padding: 0 var(--space-5) var(--space-4);
+  justify-content: center;
+}
+
+.chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.chart-legend__item:hover {
+  opacity: 0.75;
+}
+
+.chart-legend__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.chart-legend__label {
+  font-weight: 500;
+}
+
+/* ===== TOOLTIPS de Chart.js (override con CSS variables) ===== */
+/* Nota: Chart.js tooltips se estilizan vía plugin options en JS */
+/* Estas clases son para el custom HTML tooltip si se usa */
+.chart-tooltip {
+  background: var(--color-text);
+  color: white;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  position: absolute;
+  z-index: 10;
+  transform: translate(-50%, -110%);
+  white-space: nowrap;
+}
+
+.chart-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--color-text);
+}
+
+.chart-tooltip__title {
+  font-weight: 700;
+  margin-bottom: 4px;
+  opacity: 0.75;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chart-tooltip__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chart-tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chart-tooltip__color {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ===== ANIMACIONES ===== */
+/* Chart.js animaciones se controlan vía JS options */
+/* Aquí van las del contenedor */
+.chart-wrapper.chart-loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .chart-wrapper {
+    min-height: 180px;
+    max-height: 240px;
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .chart-wrapper--donut {
+    min-height: 160px;
+    max-height: 200px;
+  }
+}
