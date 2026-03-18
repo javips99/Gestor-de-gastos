@@ -35,10 +35,10 @@ async function getAll(req, res, next) {
       return res.status(400).json({ error: 'El parámetro "tipo" debe ser "ingreso" o "gasto"' });
     }
 
-    const whereClause = tipo ? 'WHERE tipo = ?' : '';
+    const whereClause = tipo ? 'WHERE tipo = $1' : '';
     const params      = tipo ? [tipo] : [];
 
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `SELECT id, nombre, icono, color, tipo, created_at
        FROM categorias
        ${whereClause}
@@ -62,18 +62,23 @@ async function create(req, res, next) {
       return res.status(400).json({ errors });
     }
 
-    const [result] = await pool.query(
-      'INSERT INTO categorias (nombre, icono, color, tipo) VALUES (?, ?, ?, ?)',
+    const insertResult = await pool.query(
+      'INSERT INTO categorias (nombre, icono, color, tipo) VALUES ($1, $2, $3, $4) RETURNING id',
       [nombre.trim(), icono.trim(), color, tipo]
     );
 
-    const [rows] = await pool.query(
-      'SELECT id, nombre, icono, color, tipo, created_at FROM categorias WHERE id = ?',
-      [result.insertId]
+    const newId = insertResult.rows[0].id;
+    const { rows } = await pool.query(
+      'SELECT id, nombre, icono, color, tipo, created_at FROM categorias WHERE id = $1',
+      [newId]
     );
 
     res.status(201).json({ data: rows[0] });
   } catch (err) {
+    // Violación de constraint UNIQUE (nombre + tipo duplicado)
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Ya existe una categoría con ese nombre y tipo' });
+    }
     next(err);
   }
 }
@@ -93,22 +98,25 @@ async function update(req, res, next) {
       return res.status(400).json({ errors });
     }
 
-    const [result] = await pool.query(
-      'UPDATE categorias SET nombre = ?, icono = ?, color = ?, tipo = ? WHERE id = ?',
+    const result = await pool.query(
+      'UPDATE categorias SET nombre = $1, icono = $2, color = $3, tipo = $4 WHERE id = $5',
       [nombre.trim(), icono.trim(), color, tipo, id]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Categoría no encontrada' });
     }
 
-    const [rows] = await pool.query(
-      'SELECT id, nombre, icono, color, tipo, created_at FROM categorias WHERE id = ?',
+    const { rows } = await pool.query(
+      'SELECT id, nombre, icono, color, tipo, created_at FROM categorias WHERE id = $1',
       [id]
     );
 
     res.json({ data: rows[0] });
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Ya existe una categoría con ese nombre y tipo' });
+    }
     next(err);
   }
 }
@@ -122,10 +130,11 @@ async function remove(req, res, next) {
     }
 
     // Comprobar si tiene transacciones antes del DELETE para dar mensaje claro
-    const [[{ total }]] = await pool.query(
-      'SELECT COUNT(*) AS total FROM transacciones WHERE id_categoria = ?',
+    const countResult = await pool.query(
+      'SELECT COUNT(*) AS total FROM transacciones WHERE id_categoria = $1',
       [id]
     );
+    const total = Number(countResult.rows[0].total);
 
     if (total > 0) {
       return res.status(409).json({
@@ -133,9 +142,9 @@ async function remove(req, res, next) {
       });
     }
 
-    const [result] = await pool.query('DELETE FROM categorias WHERE id = ?', [id]);
+    const result = await pool.query('DELETE FROM categorias WHERE id = $1', [id]);
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Categoría no encontrada' });
     }
 

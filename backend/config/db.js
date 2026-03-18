@@ -1,28 +1,33 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 
-const pool = mysql.createPool({
-  host:               process.env.DB_HOST,
-  port:               Number(process.env.DB_PORT) || 3306,
-  user:               process.env.DB_USER,
-  password:           process.env.DB_PASSWORD,
-  database:           process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit:    10,
-  queueLimit:         0,
-  timezone:           'local',
-  charset:            'utf8mb4',
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }, // requerido en Render/Heroku
+      }
+    : {
+        host:                   process.env.DB_HOST,
+        port:                   Number(process.env.DB_PORT) || 5432,
+        user:                   process.env.DB_USER,
+        password:               process.env.DB_PASSWORD,
+        database:               process.env.DB_NAME,
+        max:                    10,
+        idleTimeoutMillis:      30000,
+        connectionTimeoutMillis: 2000,
+      }
+);
 
 async function testConnection() {
-  let connection;
+  let client;
   try {
-    connection = await pool.getConnection();
-    console.log('✅ Conexión a MySQL establecida correctamente');
+    client = await pool.connect();
+    console.log('✅ Conexión a PostgreSQL establecida correctamente');
   } catch (err) {
-    console.error('❌ Error al conectar con MySQL:', err.message);
+    console.error('❌ Error al conectar con PostgreSQL:', err.message);
     process.exit(1);
   } finally {
-    if (connection) connection.release();
+    if (client) client.release();
   }
 }
 

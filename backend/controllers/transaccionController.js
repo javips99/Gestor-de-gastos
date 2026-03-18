@@ -50,10 +50,11 @@ function validateTransaccion({ descripcion, importe, tipo, fecha, id_categoria, 
 
 // Verifica que la categoría existe y que su tipo coincide con el de la transacción
 async function findCategoria(id, tipo) {
-  const [[row]] = await pool.query(
-    'SELECT id, tipo FROM categorias WHERE id = ?',
+  const { rows } = await pool.query(
+    'SELECT id, tipo FROM categorias WHERE id = $1',
     [id]
   );
+  const row = rows[0];
   if (!row) return { error: 'La categoría especificada no existe', status: 404 };
   if (row.tipo !== tipo) {
     return {
@@ -64,19 +65,21 @@ async function findCategoria(id, tipo) {
   return { categoria: row };
 }
 
-// Construye la cláusula WHERE y sus parámetros a partir de los filtros
-function buildWhereClause({ desde, hasta, categoria, tipo }) {
+// Construye la cláusula WHERE con placeholders $N para PostgreSQL
+function buildWhereClause({ desde, hasta, categoria, tipo }, startIndex = 1) {
   const conditions = [];
   const params     = [];
+  let idx = startIndex;
 
-  if (desde)     { conditions.push('t.fecha >= ?');       params.push(desde); }
-  if (hasta)     { conditions.push('t.fecha <= ?');       params.push(hasta); }
-  if (categoria) { conditions.push('t.id_categoria = ?'); params.push(Number(categoria)); }
-  if (tipo)      { conditions.push('t.tipo = ?');         params.push(tipo); }
+  if (desde)     { conditions.push(`t.fecha >= $${idx++}`);       params.push(desde); }
+  if (hasta)     { conditions.push(`t.fecha <= $${idx++}`);       params.push(hasta); }
+  if (categoria) { conditions.push(`t.id_categoria = $${idx++}`); params.push(Number(categoria)); }
+  if (tipo)      { conditions.push(`t.tipo = $${idx++}`);         params.push(tipo); }
 
   return {
-    clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+    clause:    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
     params,
+    nextIndex: idx,
   };
 }
 
@@ -120,18 +123,19 @@ async function getAll(req, res, next) {
     const limitNum  = Math.min(Math.max(1, Number(limit)  || 50), 200);
     const offsetNum = Math.max(0, Number(offset) || 0);
 
-    const { clause, params } = buildWhereClause({ desde, hasta, categoria, tipo });
+    const { clause, params, nextIndex } = buildWhereClause({ desde, hasta, categoria, tipo });
 
-    const [[{ total }]] = await pool.query(
+    const countResult = await pool.query(
       `SELECT COUNT(*) AS total FROM transacciones t ${clause}`,
       params
     );
+    const total = Number(countResult.rows[0].total);
 
-    const [rows] = await pool.query(
+    const { rows } = await pool.query(
       `${SELECT_TRANSACCION}
        ${clause}
        ORDER BY t.fecha DESC, t.created_at DESC
-       LIMIT ? OFFSET ?`,
+       LIMIT $${nextIndex} OFFSET $${nextIndex + 1}`,
       [...params, limitNum, offsetNum]
     );
 
@@ -169,7 +173,7 @@ async function getResumen(req, res, next) {
            COALESCE(SUM(CASE WHEN tipo = 'gasto'   THEN importe ELSE 0 END), 0) AS total_gastos,
            COALESCE(SUM(CASE WHEN tipo = 'ingreso' THEN importe ELSE -importe END), 0) AS balance
          FROM transacciones
-         WHERE fecha BETWEEN ? AND ?`,
+         WHERE fecha BETWEEN $1 AND $2`,
         [desde, hasta]
       ),
       // 2. Distribución de gastos por categoría (gráfico de dona)
@@ -179,7 +183,7 @@ async function getResumen(req, res, next) {
            COALESCE(SUM(t.importe), 0) AS total
          FROM categorias c
          JOIN transacciones t ON c.id = t.id_categoria
-           AND t.fecha BETWEEN ? AND ?
+           AND t.fecha BETWEEN $1 AND $2
            AND t.tipo = 'gasto'
          WHERE c.tipo = 'gasto'
          GROUP BY c.id, c.nombre, c.icono, c.color
@@ -189,19 +193,19 @@ async function getResumen(req, res, next) {
       // 3. Evolución mensual — últimos 12 meses completos (gráfico de barras)
       pool.query(
         `SELECT
-           DATE_FORMAT(fecha, '%Y-%m') AS mes,
+           TO_CHAR(fecha, 'YYYY-MM') AS mes,
            SUM(CASE WHEN tipo = 'ingreso' THEN importe ELSE 0 END) AS ingresos,
            SUM(CASE WHEN tipo = 'gasto'   THEN importe ELSE 0 END) AS gastos
          FROM transacciones
-         WHERE fecha >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 11 MONTH), '%Y-%m-01')
-         GROUP BY DATE_FORMAT(fecha, '%Y-%m')
+         WHERE fecha >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '11 months')
+         GROUP BY TO_CHAR(fecha, 'YYYY-MM')
          ORDER BY mes ASC`
       ),
     ]);
 
-    const [[totales]]    = totalesResult;
-    const [porCategoria] = porCategoriaResult;
-    const [evolucion]    = evolucionResult;
+    const totales    = totalesResult.rows[0];
+    const porCategoria = porCategoriaResult.rows;
+    const evolucion    = evolucionResult.rows;
 
     const totalGastos = Number(totales.total_gastos);
 
@@ -240,7 +244,7 @@ async function getOne(req, res, next) {
       return res.status(400).json({ error: 'ID de transacción inválido' });
     }
 
-    const [rows] = await pool.query(`${SELECT_TRANSACCION} WHERE t.id = ?`, [id]);
+    const { rows } = await pool.query(`${SELECT_TRANSACCION} WHERE t.id = $1`, [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Transacción no encontrada' });
@@ -263,9 +267,10 @@ async function create(req, res, next) {
     const catResult = await findCategoria(Number(id_categoria), tipo);
     if (catResult.error) return res.status(catResult.status).json({ error: catResult.error });
 
-    const [result] = await pool.query(
+    const insertResult = await pool.query(
       `INSERT INTO transacciones (descripcion, importe, tipo, fecha, id_categoria, notas)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
       [
         descripcion.trim(),
         Number(importe),
@@ -276,7 +281,8 @@ async function create(req, res, next) {
       ]
     );
 
-    const [rows] = await pool.query(`${SELECT_TRANSACCION} WHERE t.id = ?`, [result.insertId]);
+    const newId = insertResult.rows[0].id;
+    const { rows } = await pool.query(`${SELECT_TRANSACCION} WHERE t.id = $1`, [newId]);
 
     res.status(201).json({ data: rows[0] });
   } catch (err) {
@@ -300,10 +306,10 @@ async function update(req, res, next) {
     const catResult = await findCategoria(Number(id_categoria), tipo);
     if (catResult.error) return res.status(catResult.status).json({ error: catResult.error });
 
-    const [result] = await pool.query(
+    const result = await pool.query(
       `UPDATE transacciones
-       SET descripcion = ?, importe = ?, tipo = ?, fecha = ?, id_categoria = ?, notas = ?
-       WHERE id = ?`,
+       SET descripcion = $1, importe = $2, tipo = $3, fecha = $4, id_categoria = $5, notas = $6
+       WHERE id = $7`,
       [
         descripcion.trim(),
         Number(importe),
@@ -315,11 +321,11 @@ async function update(req, res, next) {
       ]
     );
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Transacción no encontrada' });
     }
 
-    const [rows] = await pool.query(`${SELECT_TRANSACCION} WHERE t.id = ?`, [id]);
+    const { rows } = await pool.query(`${SELECT_TRANSACCION} WHERE t.id = $1`, [id]);
 
     res.json({ data: rows[0] });
   } catch (err) {
@@ -335,9 +341,9 @@ async function remove(req, res, next) {
       return res.status(400).json({ error: 'ID de transacción inválido' });
     }
 
-    const [result] = await pool.query('DELETE FROM transacciones WHERE id = ?', [id]);
+    const result = await pool.query('DELETE FROM transacciones WHERE id = $1', [id]);
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Transacción no encontrada' });
     }
 
