@@ -3,7 +3,11 @@
  * Base URL: http://localhost:3000/api
  */
 
-const API_BASE = 'http://localhost:3000/api';
+// En producción el frontend y backend comparten dominio → URL relativa
+// En desarrollo apunta a localhost:3000
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api'
+  : '/api';
 
 /**
  * Realiza una petición HTTP a la API y devuelve los datos parseados.
