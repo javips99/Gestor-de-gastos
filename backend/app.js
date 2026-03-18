@@ -42,18 +42,17 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ── Fallback SPA: rutas no-API devuelven index.html ───────────
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) return next();
+// ── 404 para rutas /api no encontradas ────────────────────────
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// ── Fallback SPA: cualquier ruta no-API devuelve index.html ───
+app.use((req, res, next) => {
   const indexPath = path.join(FRONTEND_DIR, 'index.html');
   res.sendFile(indexPath, (err) => {
     if (err) next(err);
   });
-});
-
-// ── 404 para rutas /api no encontradas ────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
 // ── Manejador global de errores (debe ser el último middleware) ─
