@@ -12,13 +12,20 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // En Render el root directory es "backend", por lo que el frontend está en "../frontend"
-const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+const FRONTEND_DIR = path.resolve(__dirname, '..', 'frontend');
+
+// ── Diagnóstico de rutas al arrancar ──────────────────────────
+const fs = require('fs');
+console.log(`📁 __dirname:     ${__dirname}`);
+console.log(`📁 FRONTEND_DIR:  ${FRONTEND_DIR}`);
+console.log(`📁 frontend existe: ${fs.existsSync(FRONTEND_DIR)}`);
+console.log(`📁 index.html existe: ${fs.existsSync(path.join(FRONTEND_DIR, 'index.html'))}`);
+console.log(`🔑 DATABASE_URL:  ${process.env.DATABASE_URL ? 'definida ✅' : 'NO definida ❌'}`);
 
 // ── Middleware ─────────────────────────────────────────────────
+// En producción con frontend integrado, CORS no es necesario (mismo origen)
 app.use(cors({
-  origin:         process.env.NODE_ENV === 'production'
-                    ? process.env.FRONTEND_URL
-                    : '*',
+  origin: '*',
   methods:        ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type'],
 }));
@@ -35,13 +42,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ── Fallback: cualquier ruta no-API sirve el index.html (SPA) ─
+// ── Fallback SPA: rutas no-API devuelven index.html ───────────
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
-  res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
+  const indexPath = path.join(FRONTEND_DIR, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) next(err);
+  });
 });
 
-// ── 404 solo para rutas /api no encontradas ────────────────────
+// ── 404 para rutas /api no encontradas ────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
