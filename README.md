@@ -1,76 +1,20 @@
 # 💰 Gestor de Gastos
 
-Aplicación full-stack para gestionar finanzas personales. Permite registrar ingresos y gastos por categorías, visualizar la evolución mensual con gráficos interactivos y filtrar el historial de transacciones.
+Aplicación full-stack para controlar finanzas personales. Registra ingresos y gastos por categorías, visualiza la evolución mensual con gráficos y filtra el historial. Resuelve la falta de una herramienta simple, local y sin suscripción para llevar las cuentas.
 
 ---
 
-## ✨ Funcionalidades
+## Requisitos previos
 
-- **Dashboard** — KPIs de ingresos, gastos y balance. Gráfico de barras mensual y gráficos de dona por categoría. Top 6 categorías de gasto y últimas transacciones.
-- **Transacciones** — Listado paginado con filtros por fecha, tipo y categoría. Crear, editar y eliminar con confirmación.
-- **Categorías** — Gestión completa de categorías con icono, color y tipo (ingreso/gasto).
-- **API REST** — Backend con Express 5 y MySQL. Endpoints documentados con validación y manejo de errores centralizado.
-- **Diseño responsive** — Sidebar en desktop, bottom navigation en móvil.
-
----
-
-## 🛠️ Stack tecnológico
-
-| Capa | Tecnología | Motivo |
-|------|-----------|--------|
-| Backend | Node.js + Express 5 | Ligero, async nativo, ecosistema amplio |
-| Base de datos | MySQL 2 | Relacional, soporte de JOINs para consultas complejas |
-| Frontend | HTML + CSS + JavaScript ES6 (módulos) | Sin frameworks, código limpio y portable |
-| Gráficos | Chart.js 4 | Librería madura, fácil de usar, responsive |
-| Estado | Store propio (pub/sub) | Sin dependencias externas, patrón simple |
+| Herramienta | Versión mínima |
+|-------------|---------------|
+| Node.js | 18.0.0 |
+| npm | 9.0.0 |
+| MySQL | 8.0 |
 
 ---
 
-## 📁 Estructura del proyecto
-
-```
-gestor-gastos/
-├── backend/
-│   ├── app.js                        # Servidor Express, rutas y middlewares
-│   ├── package.json
-│   ├── .env.example                  # Plantilla de variables de entorno
-│   ├── config/
-│   │   └── db.js                     # Conexión MySQL con pool
-│   ├── routes/
-│   │   ├── transacciones.js          # GET/POST/PUT/DELETE /api/transacciones
-│   │   └── categorias.js             # GET/POST/PUT/DELETE /api/categorias
-│   ├── controllers/
-│   │   ├── transaccionController.js  # Lógica CRUD + resumen estadístico
-│   │   └── categoriaController.js   # Lógica CRUD categorías
-│   ├── middleware/
-│   │   └── errorHandler.js           # Manejador global de errores
-│   └── database/
-│       └── schema.sql                # Esquema de tablas + 15 categorías de ejemplo
-└── frontend/
-    ├── index.html                    # SPA: 3 vistas + 3 modales
-    ├── css/
-    │   ├── main.css                  # Variables CSS, reset, layout mobile-first
-    │   ├── components.css            # KPIs, tabla, botones, modales, formularios
-    │   └── charts.css                # Wrappers responsive para Chart.js
-    └── js/
-        ├── app.js                    # Orquestador principal
-        ├── api.js                    # Cliente HTTP (fetch) para la API REST
-        ├── store.js                  # Estado centralizado con patrón pub/sub
-        ├── ui.js                     # Renderizado del DOM
-        ├── charts.js                 # Gráficos con Chart.js
-        └── filters.js                # Lógica de filtros y fechas
-```
-
----
-
-## ⚙️ Requisitos previos
-
-- [Node.js](https://nodejs.org/) v18 o superior
-- [MySQL](https://www.mysql.com/) 8.0 o superior
-
----
-
-## 🚀 Instalación
+## Instalación
 
 ### 1. Clonar el repositorio
 
@@ -79,14 +23,13 @@ git clone https://github.com/javips99/Gestor-de-gastos.git
 cd Gestor-de-gastos
 ```
 
-### 2. Configurar la base de datos
+### 2. Crear la base de datos
 
 ```bash
-# Entra en MySQL y ejecuta el schema
 mysql -u root -p < backend/database/schema.sql
 ```
 
-Esto crea la base de datos `gestor_gastos` con las tablas y 15 categorías preconfiguradas.
+Crea la base de datos `gestor_gastos` con las dos tablas y 15 categorías de ejemplo precargadas.
 
 ### 3. Configurar variables de entorno
 
@@ -95,75 +38,263 @@ cd backend
 cp .env.example .env
 ```
 
-Edita `.env` con tus credenciales:
+Edita `.env` con tus credenciales (ver tabla de variables más abajo).
 
-```env
-PORT=3000
-NODE_ENV=development
-
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=tu_password_aqui
-DB_NAME=gestor_gastos
-```
-
-### 4. Instalar dependencias e iniciar el backend
+### 4. Instalar dependencias e iniciar el servidor
 
 ```bash
-cd backend
 npm install
-npm run dev      # desarrollo (nodemon)
-# ó
-npm start        # producción
+npm run dev
 ```
 
-El servidor arranca en `http://localhost:3000`.
+El backend arranca en `http://localhost:3000`.
 
 ### 5. Abrir el frontend
 
-Abre `frontend/index.html` directamente en el navegador, o usa Live Server en VS Code.
+Con Live Server en VS Code: clic derecho en `frontend/index.html` → **Open with Live Server**.
 
-> El frontend carga módulos ES6, por lo que necesita ser servido desde un servidor HTTP (no `file://`). Con Live Server funciona directamente.
+> El frontend usa módulos ES6 (`type="module"`), que el navegador no carga desde `file://`. Necesita un servidor HTTP local (Live Server, `npx serve`, etc.).
 
 ---
 
-## 🌐 API REST
+## Ejemplo de uso rápido
+
+```bash
+# Comprobar que la API responde
+curl http://localhost:3000/api/health
+# → { "status": "ok" }
+
+# Listar categorías
+curl http://localhost:3000/api/categorias
+
+# Crear una transacción
+curl -X POST http://localhost:3000/api/transacciones \
+  -H "Content-Type: application/json" \
+  -d '{"descripcion":"Compra supermercado","importe":45.50,"tipo":"gasto","fecha":"2026-03-18","id_categoria":2}'
+
+# Ver resumen del año actual
+curl "http://localhost:3000/api/transacciones/resumen?desde=2026-01-01&hasta=2026-12-31"
+```
+
+---
+
+## Estructura del proyecto
+
+```
+gestor-gastos/
+├── backend/
+│   ├── app.js                        # Servidor Express, CORS, rutas, health check
+│   ├── package.json
+│   ├── .env.example                  # Plantilla de variables de entorno
+│   ├── config/
+│   │   └── db.js                     # Pool de conexiones MySQL
+│   ├── routes/
+│   │   ├── transacciones.js          # Rutas /api/transacciones
+│   │   └── categorias.js             # Rutas /api/categorias
+│   ├── controllers/
+│   │   ├── transaccionController.js  # CRUD + resumen estadístico
+│   │   └── categoriaController.js    # CRUD categorías
+│   ├── middleware/
+│   │   └── errorHandler.js           # Manejador global de errores
+│   └── database/
+│       └── schema.sql                # Tablas + 15 categorías precargadas
+└── frontend/
+    ├── index.html                    # SPA: 3 vistas + 3 modales
+    ├── css/
+    │   ├── main.css                  # Variables CSS, reset, layout mobile-first
+    │   ├── components.css            # KPIs, tabla, botones, modales, formularios
+    │   └── charts.css                # Wrappers responsive para Chart.js
+    └── js/
+        ├── app.js                    # Orquestador: conecta API, store y UI
+        ├── api.js                    # Cliente fetch para la API REST
+        ├── store.js                  # Estado centralizado (patrón pub/sub)
+        ├── ui.js                     # Renderizado del DOM y utilidades
+        ├── charts.js                 # Gráficos con Chart.js 4
+        └── filters.js                # Lógica de filtros y rangos de fecha
+```
+
+---
+
+## Variables de entorno
+
+Archivo: `backend/.env`
+
+| Variable | Descripción | Ejemplo | Obligatoria |
+|----------|-------------|---------|-------------|
+| `PORT` | Puerto del servidor | `3000` | No (default: 3000) |
+| `NODE_ENV` | Entorno de ejecución | `development` | No (default: development) |
+| `DB_HOST` | Host de MySQL | `localhost` | Sí |
+| `DB_PORT` | Puerto de MySQL | `3306` | No (default: 3306) |
+| `DB_USER` | Usuario de MySQL | `root` | Sí |
+| `DB_PASSWORD` | Contraseña de MySQL | `mi_password` | Sí |
+| `DB_NAME` | Nombre de la base de datos | `gestor_gastos` | Sí |
+| `FRONTEND_URL` | URL del frontend (solo producción) | `https://mi-dominio.com` | No |
+
+---
+
+## API REST
 
 Base URL: `http://localhost:3000/api`
 
-### Categorías
+---
 
-| Método | Ruta | Descripción |
+### GET `/api/health`
+
+Comprueba que el servidor está activo.
+
+**Respuesta exitosa `200`:**
+```json
+{ "status": "ok", "timestamp": "2026-03-18T10:00:00.000Z" }
+```
+
+---
+
+### GET `/api/categorias`
+
+Lista todas las categorías. Filtro opcional por tipo.
+
+**Parámetros query:**
+
+| Nombre | Tipo | Descripción | Obligatorio |
+|--------|------|-------------|-------------|
+| `tipo` | `string` | `ingreso` o `gasto` | No |
+
+**Respuesta exitosa `200`:**
+```json
+{
+  "data": [
+    { "id": 1, "nombre": "Salario", "icono": "💼", "color": "#4CAF50", "tipo": "ingreso", "created_at": "2026-01-01T00:00:00.000Z" }
+  ]
+}
+```
+
+---
+
+### POST `/api/categorias`
+
+Crea una nueva categoría.
+
+**Body:**
+```json
+{
+  "nombre": "Supermercado",
+  "icono": "🛒",
+  "color": "#E91E63",
+  "tipo": "gasto"
+}
+```
+
+**Respuesta exitosa `201`:**
+```json
+{
+  "data": { "id": 12, "nombre": "Supermercado", "icono": "🛒", "color": "#E91E63", "tipo": "gasto" }
+}
+```
+
+**Errores:**
+- `400` — Campos faltantes o inválidos (nombre vacío, color no hex, tipo incorrecto)
+- `409` — Ya existe una categoría con ese nombre y tipo
+
+---
+
+### PUT `/api/categorias/:id`
+
+Actualiza una categoría existente.
+
+**Parámetros ruta:**
+
+| Nombre | Tipo | Descripción |
 |--------|------|-------------|
-| GET | `/categorias` | Listar todas (opcional: `?tipo=ingreso\|gasto`) |
-| POST | `/categorias` | Crear categoría |
-| PUT | `/categorias/:id` | Actualizar categoría |
-| DELETE | `/categorias/:id` | Eliminar (falla si tiene transacciones) |
+| `id` | `integer` | ID de la categoría |
 
-### Transacciones
+**Body:** igual que POST.
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/transacciones` | Listar con filtros (`desde`, `hasta`, `tipo`, `categoria`, `limit`, `offset`) |
-| GET | `/transacciones/resumen` | Estadísticas del período (totales, por categoría, evolución mensual) |
-| GET | `/transacciones/:id` | Obtener una transacción |
-| POST | `/transacciones` | Crear transacción |
-| PUT | `/transacciones/:id` | Actualizar transacción |
-| DELETE | `/transacciones/:id` | Eliminar transacción |
+**Respuesta exitosa `200`:**
+```json
+{
+  "data": { "id": 12, "nombre": "Super", "icono": "🛒", "color": "#E91E63", "tipo": "gasto" }
+}
+```
 
-### Ejemplo de respuesta — `/api/transacciones/resumen`
+**Errores:**
+- `400` — Datos inválidos
+- `404` — Categoría no encontrada
+- `409` — Nombre duplicado
 
+---
+
+### DELETE `/api/categorias/:id`
+
+Elimina una categoría. Falla si tiene transacciones asociadas.
+
+**Respuesta exitosa `200`:**
+```json
+{ "message": "Categoría eliminada correctamente" }
+```
+
+**Errores:**
+- `404` — Categoría no encontrada
+- `409` — La categoría tiene transacciones asociadas y no se puede eliminar
+
+---
+
+### GET `/api/transacciones`
+
+Lista transacciones con filtros y paginación.
+
+**Parámetros query:**
+
+| Nombre | Tipo | Descripción | Obligatorio |
+|--------|------|-------------|-------------|
+| `desde` | `string` | Fecha inicio `YYYY-MM-DD` | No |
+| `hasta` | `string` | Fecha fin `YYYY-MM-DD` | No |
+| `tipo` | `string` | `ingreso` o `gasto` | No |
+| `categoria` | `integer` | ID de categoría | No |
+| `limit` | `integer` | Resultados por página (máx. 200, default 50) | No |
+| `offset` | `integer` | Desplazamiento para paginación (default 0) | No |
+
+**Respuesta exitosa `200`:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "descripcion": "Compra supermercado",
+      "importe": 45.50,
+      "tipo": "gasto",
+      "fecha": "2026-03-18",
+      "notas": null,
+      "categoria_id": 2,
+      "categoria_nombre": "Supermercado",
+      "categoria_icono": "🛒",
+      "categoria_color": "#E91E63"
+    }
+  ],
+  "meta": { "total": 120, "limit": 50, "offset": 0, "hasMore": true }
+}
+```
+
+---
+
+### GET `/api/transacciones/resumen`
+
+Devuelve estadísticas agregadas del período indicado.
+
+**Parámetros query:**
+
+| Nombre | Tipo | Descripción | Obligatorio |
+|--------|------|-------------|-------------|
+| `desde` | `string` | Fecha inicio `YYYY-MM-DD` | No (default: 1 enero del año actual) |
+| `hasta` | `string` | Fecha fin `YYYY-MM-DD` | No (default: 31 dic del año actual) |
+
+**Respuesta exitosa `200`:**
 ```json
 {
   "data": {
-    "totales": {
-      "ingresos": 5000.00,
-      "gastos": 2500.50,
-      "balance": 2499.50
-    },
+    "periodo": { "desde": "2026-01-01", "hasta": "2026-12-31" },
+    "totales": { "ingresos": 5000.00, "gastos": 2500.50, "balance": 2499.50 },
     "porCategoria": [
-      { "nombre": "Supermercado", "icono": "🛒", "color": "#E91E63", "total": 850.00, "porcentaje": 34.00 }
+      { "id": 2, "nombre": "Supermercado", "icono": "🛒", "color": "#E91E63", "total": 850.00, "porcentaje": 34.00 }
     ],
     "evolucionMensual": [
       { "mes": "2026-01", "ingresos": 500.00, "gastos": 250.00 }
@@ -174,48 +305,88 @@ Base URL: `http://localhost:3000/api`
 
 ---
 
-## 🗃️ Modelo de datos
+### POST `/api/transacciones`
 
-```
-categorias
-├── id           INT UNSIGNED PK
-├── nombre       VARCHAR(50)
-├── icono        VARCHAR(10)
-├── color        VARCHAR(7)   -- hex #RRGGBB
-├── tipo         ENUM('ingreso','gasto')
-└── created_at   TIMESTAMP
+Crea una nueva transacción.
 
-transacciones
-├── id           INT UNSIGNED PK
-├── descripcion  VARCHAR(150)
-├── importe      DECIMAL(10,2)
-├── tipo         ENUM('ingreso','gasto')
-├── fecha        DATE
-├── id_categoria INT UNSIGNED FK → categorias.id
-├── notas        TEXT NULL
-├── created_at   TIMESTAMP
-└── updated_at   TIMESTAMP
+**Body:**
+```json
+{
+  "descripcion": "Compra supermercado",
+  "importe": 45.50,
+  "tipo": "gasto",
+  "fecha": "2026-03-18",
+  "id_categoria": 2,
+  "notas": "Compra semanal"
+}
 ```
+
+**Respuesta exitosa `201`:**
+```json
+{
+  "data": { "id": 55, "descripcion": "Compra supermercado", "importe": 45.50, "tipo": "gasto", "fecha": "2026-03-18" }
+}
+```
+
+**Errores:**
+- `400` — Campos obligatorios faltantes, importe <= 0 o fecha inválida
+- `404` — La categoría indicada no existe
 
 ---
 
-## 📦 Dependencias del backend
+### PUT `/api/transacciones/:id`
+
+Actualiza una transacción existente. Body igual que POST.
+
+**Errores:**
+- `400` — Datos inválidos
+- `404` — Transacción no encontrada
+
+---
+
+### DELETE `/api/transacciones/:id`
+
+Elimina una transacción.
+
+**Respuesta exitosa `200`:**
+```json
+{ "message": "Transacción eliminada correctamente" }
+```
+
+**Errores:**
+- `404` — Transacción no encontrada
+
+---
+
+## Tests
+
+El proyecto no incluye tests automatizados. Verificación manual:
 
 ```bash
-npm install
-```
+# Health check
+curl http://localhost:3000/api/health
 
-| Paquete | Versión | Uso |
-|---------|---------|-----|
-| express | ^5.2.1 | Framework HTTP |
-| mysql2 | ^3.20.0 | Driver MySQL con soporte Promises |
-| dotenv | ^17.3.1 | Variables de entorno |
-| cors | ^2.8.6 | Permitir peticiones cross-origin |
-| nodemon | ^3.1.14 | Hot-reload en desarrollo |
+# Crear categoría y verificar que aparece en el listado
+curl -X POST http://localhost:3000/api/categorias \
+  -H "Content-Type: application/json" \
+  -d '{"nombre":"Test","icono":"🧪","color":"#FF0000","tipo":"gasto"}'
+
+curl http://localhost:3000/api/categorias
+```
 
 ---
 
-## 👨‍💻 Autor
+## Cómo contribuir
+
+1. Haz fork del repositorio
+2. Crea una rama: `git checkout -b feat/nombre-funcionalidad`
+3. Commitea los cambios: `git commit -m "feat: descripción"`
+4. Haz push: `git push origin feat/nombre-funcionalidad`
+5. Abre un Pull Request
+
+---
+
+## Autor
 
 **Javi** — Estudiante de DAW
-[GitHub](https://github.com/javips99) · [Portfolio](https://javips99.github.io/Mi-porfolio/)
+[GitHub](https://github.com/javips99) · [Portfolio](https://javaps99.github.io/Mi-porfolio/)
